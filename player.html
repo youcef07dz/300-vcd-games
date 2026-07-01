@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NES Player</title>
+<script type="importmap">
+{
+  "imports": {
+    "@nesjs/native": "./lib/nesjs/native.mjs"
+  }
+}
+</script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #222; color: #fff; min-height: 100vh;
+  display: flex; justify-content: center; align-items: center; padding: 20px;
+}
+.container { text-align: center; width: 100%; max-width: 800px; }
+h1 { font-size: 22px; margin-bottom: 8px; }
+.row { display: flex; gap: 8px; justify-content: center; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+canvas {
+  display: block; width: 512px; height: 480px;
+  image-rendering: pixelated; background: #000; border-radius: 4px;
+  max-width: 100%; cursor: pointer;
+}
+canvas.filter-smooth { image-rendering: auto; }
+.canvas-wrap { position: relative; display: inline-block; margin: 0 auto 16px; }
+#scanline {
+  display: none; position: absolute; inset: 0; border-radius: 4px;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.15) 0px, rgba(0,0,0,.15) 1px, transparent 1px, transparent 3px);
+}
+.controls { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
+.btn {
+  padding: 8px 16px; background: #444; color: #fff; border: none;
+  border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer;
+  text-decoration: none; transition: background .2s;
+}
+.btn:hover { background: #666; }
+select {
+  padding: 8px 12px; background: #444; color: #fff; border: none;
+  border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer;
+  max-width: 240px;
+}
+.help-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.85);
+  z-index: 100; justify-content: center; align-items: center;
+}
+.help-overlay.open { display: flex; }
+.help-box {
+  background: #333; padding: 24px 32px; border-radius: 12px;
+  max-width: 360px; width: 90%; font-size: 14px; line-height: 1.8;
+}
+.help-box h2 { text-align: center; margin-bottom: 12px; }
+.help-box kbd {
+  display: inline-block; background: #555; padding: 1px 8px; border-radius: 4px;
+  font-family: monospace; font-size: 13px; min-width: 24px; text-align: center;
+}
+.help-box .row { display: flex; justify-content: space-between; }
+.help-box .close-btn {
+  display: block; margin: 16px auto 0; padding: 8px 24px; background: #e67e22;
+  color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer;
+}
+#mapperInfo { font-size: 12px; opacity: .5; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="row">
+      <h1 id="title">Now Playing</h1><select id="gameSelect"></select>
+  </div>
+  <div class="canvas-wrap">
+    <canvas id="screen" width="256" height="240"></canvas>
+    <div id="scanline"></div>
+  </div>
+  <div id="mapperInfo"></div>
+  <div class="controls">
+    <a class="btn" href="index.html">← Back</a>
+    <button class="btn" id="resetBtn">Reset</button>
+    <button class="btn" id="helpBtn">Controls</button>
+    <button class="btn" id="soundBtn">Sound: On</button>
+    <button class="btn" id="fullscreenBtn">Fullscreen</button>
+    <!--<button class="btn" id="filterBtn">Filter</button>-->
+  </div>
+</div>
+
+<div class="help-overlay" id="helpOverlay">
+  <div class="help-box">
+    <h2>Controls</h2>
+    <div class="row"><span>D-Pad</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></span></div>
+    <div class="row"><span>A</span><span><kbd>K</kbd> / <kbd>X</kbd></span></div>
+    <div class="row"><span>B</span><span><kbd>J</kbd> / <kbd>Z</kbd></span></div>
+    <div class="row"><span>Start</span><span><kbd>1</kbd> / <kbd>Enter</kbd></span></div>
+    <div class="row"><span>Select</span><span><kbd>2</kbd> / <kbd>Shift</kbd></span></div>
+    <div class="row"><span>Reset</span><span><kbd>F2</kbd></span></div>
+    <button class="close-btn" id="closeHelpBtn">Close</button>
+  </div>
+</div>
+
+<script>
+let pages;
+
+const params = new URLSearchParams(location.search);
+let currentPage = parseInt(params.get('page')) || 1;
+let currentGame = parseInt(params.get('game')) || 1;
+
+const canvas = document.getElementById('screen');
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Escape') document.getElementById('helpOverlay').classList.remove('open');
+  const gameKeys = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space',
+    'KeyW','KeyA','KeyS','KeyD','KeyZ','KeyX','KeyJ','KeyK',
+    'Enter','ShiftLeft','ShiftRight','F2','Digit1','Digit2','KeyI','KeyU']
+  if (gameKeys.includes(e.code)) e.preventDefault()
+})
+
+const filters = ['pixelated', 'smooth', 'scanline'];
+let filterIdx = 0;
+
+fetch('games.json').then(r => r.json()).then(data => {
+  pages = data;
+  const sel = document.getElementById('gameSelect');
+  for (let p = 0; p < pages.length; p++) {
+    const grp = document.createElement('optgroup');
+    grp.label = 'Page ' + (p + 1);
+    for (let g = 0; g < pages[p].length; g++) {
+      const opt = document.createElement('option');
+      opt.value = (p + 1) + ',' + (g + 1);
+      opt.textContent = (g + 1) + '. ' + pages[p][g];
+      grp.appendChild(opt);
+    }
+    sel.appendChild(grp);
+  }
+  sel.value = currentPage + ',' + currentGame;
+  document.getElementById('title').textContent = pages[currentPage-1][currentGame-1];
+
+  sel.addEventListener('change', () => {
+    const parts = sel.value.split(',');
+    currentPage = parseInt(parts[0]); currentGame = parseInt(parts[1]);
+    params.set('page', currentPage); params.set('game', currentGame);
+    location.search = params.toString();
+  });
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => { if (window.__nesjsNative) window.__nesjsNative.reset(); });
+document.getElementById('helpBtn').addEventListener('click', () => {
+  document.getElementById('helpOverlay').classList.toggle('open');
+});
+document.getElementById('closeHelpBtn').addEventListener('click', () => {
+  document.getElementById('helpOverlay').classList.remove('open');
+});
+document.getElementById('helpOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.target.classList.remove('open');
+});
+document.getElementById('fullscreenBtn').addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else canvas.requestFullscreen();
+});
+document.getElementById('filterBtn').addEventListener('click', () => {
+  filterIdx = (filterIdx + 1) % filters.length;
+  canvas.className = filterIdx === 0 ? '' : 'filter-' + filters[filterIdx];
+  document.getElementById('scanline').style.display = filterIdx === 2 ? '' : 'none';
+  document.getElementById('filterBtn').textContent = 'Filter: ' + filters[filterIdx];
+});
+document.getElementById('soundBtn').addEventListener('click', () => {
+  const e = window.__nesjsNative?.emulator;
+  if (!e) return;
+  if (document.getElementById('soundBtn').textContent === 'Sound: On') {
+    e.disableAudio();
+    document.getElementById('soundBtn').textContent = 'Sound: Off';
+  } else {
+    e.enableAudio();
+    document.getElementById('soundBtn').textContent = 'Sound: On';
+  }
+});
+</script>
+<script type="module">
+import { NESEmulator } from '@nesjs/native'
+
+const p = new URLSearchParams(location.search)
+const page = parseInt(p.get('page')) || 1
+const game = parseInt(p.get('game')) || 1
+const canvas = document.getElementById('screen')
+const emu = new NESEmulator(canvas, { scale: 2, smoothing: false })
+
+// Add keyboard bindings (wasd defaults + arrows/zx/enter/shift)
+const { adapter } = emu.controller
+const add = (code, idx) => adapter.addEvent(code, { player: 1, index: idx })
+add('ArrowUp', 4); add('ArrowDown', 5); add('ArrowLeft', 6); add('ArrowRight', 7)
+add('KeyX', 0); add('KeyZ', 1)
+add('Enter', 3); add('ShiftLeft', 2); add('ShiftRight', 2)
+
+const res = await fetch(`rom/page${page}/${game}.txt`)
+const data = new Uint8Array(await res.arrayBuffer())
+await emu.loadROM(data)
+
+// Start video immediately; audio requires a user gesture
+emu.lastFrameTime = performance.now()
+emu.run()
+
+const enableAudio = async () => {
+  if (await emu.enableAudio())
+    document.getElementById('soundBtn').textContent = 'Sound: On'
+  document.removeEventListener('keydown', enableAudio)
+  document.removeEventListener('click', enableAudio)
+}
+document.addEventListener('keydown', enableAudio)
+document.addEventListener('click', enableAudio)
+
+window.__nesjsNative = { emulator: emu, reset: () => emu.reset(), stop: () => emu.stop() }
+</script>
+</body>
+</html>
