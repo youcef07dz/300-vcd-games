@@ -42,7 +42,7 @@ canvas.filter-smooth { image-rendering: auto; }
 }
 #mapperInfo { font-size: 11px; opacity: .4; text-align: center; margin: 4px 0; }
 .toolbar {
-  display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 6px 0 8px;
+  display: none;
 }
 .btn {
   padding: 8px 14px; background: #444; color: #fff; border: none;
@@ -69,7 +69,7 @@ canvas.filter-smooth { image-rendering: auto; }
 }
 .dpad-btn {
   background: rgba(255,255,255,.12); border: none; border-radius: 6px;
-  color: #fff; font-size: 18px; display: flex; align-items: center;
+  color: #fff; font-size: 18px; font-weight: bold; display: flex; align-items: center;
   justify-content: center; cursor: pointer;
   -webkit-user-select: none; user-select: none;
 }
@@ -79,27 +79,15 @@ canvas.filter-smooth { image-rendering: auto; }
 .dpad-left  { grid-area: left; }
 .dpad-right { grid-area: right; }
 .face-btns {
-  display: grid;
-  grid-template-areas:
-    ".  y  ."
-    "b  .  a"
-    ".  x  .";
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr;
-  gap: 3px; aspect-ratio: 1;
+  display: flex; gap: 12px; align-items: center; justify-content: center;
 }
 .face-btn {
   background: rgba(255,255,255,.12); border: none; border-radius: 50%;
-  color: #fff; font-size: 12px; font-weight: bold;
+  color: #fff; font-size: 16px; font-weight: bold; width: 64px; height: 64px;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   -webkit-user-select: none; user-select: none;
 }
 .face-btn:active { background: rgba(255,255,255,.25); }
-.face-btn.turbo { color: #f88; }
-.face-a { grid-area: a; }
-.face-b { grid-area: b; }
-.face-x { grid-area: x; }
-.face-y { grid-area: y; }
 .sys-btns {
   display: flex; gap: 6px; justify-content: center;
   grid-column: 1 / -1;
@@ -107,6 +95,7 @@ canvas.filter-smooth { image-rendering: auto; }
 .sys-btn {
   padding: 10px 20px; background: rgba(255,255,255,.1); border: none;
   border-radius: 8px; color: #fff; font-size: 13px; font-weight: bold; cursor: pointer;
+  -webkit-user-select: none; user-select: none;
   flex: 1; max-width: 120px;
 }
 .sys-btn:active { background: rgba(255,255,255,.2); }
@@ -162,10 +151,8 @@ canvas.filter-smooth { image-rendering: auto; }
     <button class="dpad-btn dpad-down"  data-code="ArrowDown">▼</button>
   </div>
   <div class="face-btns" id="faceBtns">
-    <button class="face-btn face-a" data-code="KeyX">A</button>
-    <button class="face-btn face-b" data-code="KeyZ">B</button>
-    <button class="face-btn face-x turbo" data-code="KeyX" data-turbo="1">Turbo A</button>
-    <button class="face-btn face-y turbo" data-code="KeyZ" data-turbo="1">Turbo B</button>
+    <button class="face-btn" data-code="KeyX">A</button>
+    <button class="face-btn" data-code="KeyZ">B</button>
   </div>
   <div class="sys-btns">
     <button class="sys-btn" id="selectBtn">Select</button>
@@ -245,61 +232,28 @@ document.getElementById('soundBtn').addEventListener('click', () => {
 });
 
 // Virtual gamepad: dispatch keyboard events on touch
-const TURBO_INTERVAL = 33; // ~30 presses/sec
-const turboTimers = new Map();
-
-function fire(code, type) {
-  document.dispatchEvent(new KeyboardEvent(type, {
-    code, key: code.replace('Key','').replace('Arrow',''), bubbles: true
-  }));
-}
-
 function setupBtn(id, code) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.addEventListener('touchstart', e => { e.preventDefault(); fire(code, 'keydown'); });
-  el.addEventListener('touchend', e => { e.preventDefault(); fire(code, 'keyup'); });
-  el.addEventListener('touchcancel', e => { e.preventDefault(); fire(code, 'keyup'); });
-  el.addEventListener('mousedown', () => fire(code, 'keydown'));
-  el.addEventListener('mouseup', () => fire(code, 'keyup'));
-  el.addEventListener('mouseleave', () => fire(code, 'keyup'));
+  const down = () => document.dispatchEvent(new KeyboardEvent('keydown', { code, key: code.replace('Key','').replace('Arrow',''), bubbles: true }));
+  const up = () => document.dispatchEvent(new KeyboardEvent('keyup', { code, key: code.replace('Key','').replace('Arrow',''), bubbles: true }));
+  el.addEventListener('touchstart', e => { e.preventDefault(); down(); });
+  el.addEventListener('touchend', e => { e.preventDefault(); up(); });
+  el.addEventListener('touchcancel', e => { e.preventDefault(); up(); });
+  el.addEventListener('mousedown', down);
+  el.addEventListener('mouseup', up);
+  el.addEventListener('mouseleave', up);
 }
-
-function startTurbo(el, code) {
-  if (turboTimers.has(el)) return;
-  fire(code, 'keydown');
-  const timer = setInterval(() => {
-    fire(code, 'keyup');
-    fire(code, 'keydown');
-  }, TURBO_INTERVAL);
-  turboTimers.set(el, timer);
-}
-
-function stopTurbo(el, code) {
-  const timer = turboTimers.get(el);
-  if (!timer) return;
-  clearInterval(timer);
-  turboTimers.delete(el);
-  fire(code, 'keyup');
-}
-
 document.querySelectorAll('[data-code]').forEach(el => {
   const code = el.dataset.code;
-  if (el.dataset.turbo) {
-    el.addEventListener('touchstart', e => { e.preventDefault(); startTurbo(el, code); });
-    el.addEventListener('touchend', e => { e.preventDefault(); stopTurbo(el, code); });
-    el.addEventListener('touchcancel', e => { e.preventDefault(); stopTurbo(el, code); });
-    el.addEventListener('mousedown', () => startTurbo(el, code));
-    el.addEventListener('mouseup', () => stopTurbo(el, code));
-    el.addEventListener('mouseleave', () => stopTurbo(el, code));
-  } else {
-    el.addEventListener('touchstart', e => { e.preventDefault(); fire(code, 'keydown'); });
-    el.addEventListener('touchend', e => { e.preventDefault(); fire(code, 'keyup'); });
-    el.addEventListener('touchcancel', e => { e.preventDefault(); fire(code, 'keyup'); });
-    el.addEventListener('mousedown', () => fire(code, 'keydown'));
-    el.addEventListener('mouseup', () => fire(code, 'keyup'));
-    el.addEventListener('mouseleave', () => fire(code, 'keyup'));
-  }
+  const down = () => document.dispatchEvent(new KeyboardEvent('keydown', { code, key: code.replace('Key','').replace('Arrow',''), bubbles: true }));
+  const up = () => document.dispatchEvent(new KeyboardEvent('keyup', { code, key: code.replace('Key','').replace('Arrow',''), bubbles: true }));
+  el.addEventListener('touchstart', e => { e.preventDefault(); down(); });
+  el.addEventListener('touchend', e => { e.preventDefault(); up(); });
+  el.addEventListener('touchcancel', e => { e.preventDefault(); up(); });
+  el.addEventListener('mousedown', down);
+  el.addEventListener('mouseup', up);
+  el.addEventListener('mouseleave', up);
 });
 setupBtn('selectBtn', 'ShiftLeft');
 setupBtn('startBtn', 'Enter');
