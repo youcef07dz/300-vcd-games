@@ -30,8 +30,9 @@ body {
   margin: 0 auto; flex-shrink: 0;
 }
 canvas {
-  display: block; width: 100%; aspect-ratio: 256/240;
-  image-rendering: pixelated; background: #000; border-radius: 4px; cursor: pointer;
+  display: block; width: 100% !important; height: auto !important;
+  aspect-ratio: 256/240; image-rendering: pixelated; background: #000;
+  border-radius: 4px; cursor: pointer;
 }
 canvas.filter-smooth { image-rendering: auto; }
 #scanline {
