@@ -2,45 +2,45 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>300 VCD Game Menu</title>
-<script>if(window.innerWidth<=820||'ontouchstart'in window||navigator.maxTouchPoints>0)location.replace('indexm.html'+location.search)</script>
-<link rel="stylesheet" href="style.css">
+<script>if(window.innerWidth>820&&!('ontouchstart'in window)&&navigator.maxTouchPoints<=0)location.replace('index.html'+location.search)</script>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: #e0e0e0; min-height: 100vh; display: flex;
-  justify-content: center; align-items: center; padding: 20px;
+  justify-content: center; align-items: center; padding: 12px;
   background-size: contain; background-position: right; background-attachment: fixed; background-repeat: no-repeat;
 }
 .card {
-  background: transparent; border-radius: 16px; padding: 24px 20px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.6); max-width: 420px; width: 100%;
+  background: transparent; border-radius: 16px; padding: 20px 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.6); max-width: 480px; width: 100%;
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   color: #000; font-weight: bold;
 }
-h1 { text-align: center; font-size: 24px; margin-bottom: 4px; }
-.page { text-align: center; font-size: 13px; opacity: .6; margin-bottom: 20px; }
+h1 { text-align: center; font-size: 22px; margin-bottom: 2px; }
+.page { text-align: center; font-size: 13px; opacity: .6; margin-bottom: 16px; }
 ul { list-style: none; }
 li {
-  padding: 10px 16px; border-bottom: 1px solid rgba(0,0,0,.1);
-  font-size: 16px; display: flex; cursor: pointer; border-radius: 6px;
+  padding: 14px 16px; border-bottom: 1px solid rgba(0,0,0,.1);
+  font-size: 17px; display: flex; cursor: pointer; border-radius: 8px;
   text-decoration: none; color: inherit; transition: background .15s;
+  -webkit-user-select: none; user-select: none;
 }
-li:hover { background: rgba(0,0,0,.06); }
+li:active { background: rgba(0,0,0,.06); }
 li:last-child { border-bottom: none; }
 a { text-decoration: none; color: inherit; display: flex; width: 100%; }
-.num { width: 32px; flex-shrink: 0; opacity: .5; }
+.num { width: 36px; flex-shrink: 0; opacity: .5; }
 .nav { display: flex; justify-content: center; gap: 12px; margin-top: 20px; }
 .nav-btn {
-  display: inline-block; padding: 8px 20px; background: rgba(0,0,0,.7);
-  color: #fff; text-decoration: none; border-radius: 8px;
-  font-size: 14px; transition: background .2s; cursor: pointer;
-  border: none; font-weight: bold;
+  display: inline-block; padding: 12px 24px; background: rgba(0,0,0,.7);
+  color: #fff; text-decoration: none; border-radius: 10px;
+  font-size: 16px; transition: background .2s; cursor: pointer;
+  border: none; font-weight: bold; flex: 1; max-width: 160px;
 }
-.nav-btn:hover { background: rgba(0,0,0,.9); }
-.nav-btn:disabled { opacity: .3; cursor: default; }
+.nav-btn:active { background: rgba(0,0,0,.9); }
+.nav-btn:disabled { opacity: .3; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -68,7 +68,7 @@ function render(page) {
   const games = pages[page - 1];
   document.getElementById('pageLabel').textContent = `Page ${page}`;
   document.getElementById('gameList').innerHTML = games.map((g, i) =>
-    `<a href="player.html?page=${page}&game=${i+1}"><li><span class="num">${i+1}.</span> ${g}</li></a>`
+    `<a href="playerm.html?page=${page}&game=${i+1}"><li><span class="num">${i+1}.</span> ${g}</li></a>`
   ).join('');
   document.getElementById('prevBtn').disabled = page <= 1;
   document.getElementById('nextBtn').disabled = page >= pages.length;
@@ -81,8 +81,6 @@ document.getElementById('prevBtn').addEventListener('click', () => {
 });
 document.getElementById('nextBtn').addEventListener('click', () => {
   if (currentPage < pages.length) { currentPage++; render(currentPage); }
-
-
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft' && currentPage > 1) { currentPage--; render(currentPage); }
